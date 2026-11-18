@@ -40,6 +40,14 @@ func (t *StreamableTransport) Start(ctx context.Context, tmplCtx *template.Conte
 		opts = append(opts, transport.WithHTTPHeaders(t.cfg.Headers))
 	}
 
+	httpClient, err := newTLSHTTPClient(t.cfg.TLS)
+	if err != nil {
+		return fmt.Errorf("failed to configure TLS client: %w", err)
+	}
+	if httpClient != nil {
+		opts = append(opts, transport.WithHTTPBasicClient(httpClient))
+	}
+
 	streamableTransport, err := transport.NewStreamableHTTP(t.cfg.URL, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create Streamable HTTP transport: %w", err)

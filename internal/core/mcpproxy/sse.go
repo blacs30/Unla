@@ -40,6 +40,14 @@ func (t *SSETransport) Start(ctx context.Context, tmplCtx *template.Context) err
 		opts = append(opts, transport.WithHeaders(t.cfg.Headers))
 	}
 
+	httpClient, err := newTLSHTTPClient(t.cfg.TLS)
+	if err != nil {
+		return fmt.Errorf("failed to configure TLS client: %w", err)
+	}
+	if httpClient != nil {
+		opts = append(opts, transport.WithHTTPClient(httpClient))
+	}
+
 	sseTransport, err := transport.NewSSE(t.cfg.URL, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create SSE transport: %w", err)

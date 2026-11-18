@@ -84,8 +84,19 @@ type (
 		Env          map[string]string     `json:"env,omitempty" yaml:"env,omitempty"`         // for stdio
 		URL          string                `json:"url,omitempty" yaml:"url,omitempty"`         // for sse and streamable-http
 		Headers      map[string]string     `json:"headers,omitempty" yaml:"headers,omitempty"` // static headers sent to sse and streamable-http servers
+		TLS          *MCPTLSConfig         `json:"tls,omitempty" yaml:"tls,omitempty"`         // TLS client settings for sse and streamable-http servers
 		Policy       cnst.MCPStartupPolicy `json:"policy" yaml:"policy"`                       // onStart or onDemand
 		Preinstalled bool                  `json:"preinstalled" yaml:"preinstalled"`           // whether to install this MCP server when mcp-gateway starts
+	}
+
+	// MCPTLSConfig configures the TLS client used to reach an MCP server over
+	// https (sse / streamable-http). CertFile+KeyFile enable mutual TLS.
+	MCPTLSConfig struct {
+		CAFile             string `json:"ca_file,omitempty" yaml:"ca_file,omitempty"`                           // PEM bundle used to verify the server
+		CertFile           string `json:"cert_file,omitempty" yaml:"cert_file,omitempty"`                       // client certificate (mTLS)
+		KeyFile            string `json:"key_file,omitempty" yaml:"key_file,omitempty"`                         // client private key (mTLS)
+		ServerName         string `json:"server_name,omitempty" yaml:"server_name,omitempty"`                   // override the name verified in the server certificate
+		InsecureSkipVerify bool   `json:"insecure_skip_verify,omitempty" yaml:"insecure_skip_verify,omitempty"` // disables verification; avoid in production
 	}
 
 	ArgConfig struct {
