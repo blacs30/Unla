@@ -18,4 +18,6 @@ type AuthMode string
 
 const (
 	AuthModeOAuth2 AuthMode = "oauth2"
+	// AuthModeAPIKey requires a static bearer token from auth.api_keys.
+	AuthModeAPIKey AuthMode = "apikey"
 )
