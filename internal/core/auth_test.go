@@ -21,6 +21,7 @@ type mockAuthService struct {
 	register       func(ctx context.Context, r *http.Request) (*auth.ClientRegistrationResponse, error)
 	revoke         func(ctx context.Context, r *http.Request) error
 	validateToken  func(ctx context.Context, token string) error
+	validateAPIKey func(token string) error
 }
 
 func (m *mockAuthService) ServerMetadata(r *http.Request) map[string]interface{} {
@@ -49,6 +50,13 @@ func (m *mockAuthService) Register(ctx context.Context, r *http.Request) (*auth.
 		return m.register(ctx, r)
 	}
 	return &auth.ClientRegistrationResponse{ClientID: "test_client", ClientSecret: "test_secret"}, nil
+}
+
+func (m *mockAuthService) ValidateAPIKey(token string) error {
+	if m.validateAPIKey != nil {
+		return m.validateAPIKey(token)
+	}
+	return nil
 }
 
 func (m *mockAuthService) Revoke(ctx context.Context, r *http.Request) error {
