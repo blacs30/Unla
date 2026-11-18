@@ -25,6 +25,7 @@ func (f *fakeAuth) GetGoogleOAuth() inta.ExternalOAuth { return nil }
 func (f *fakeAuth) GetGitHubOAuth() inta.ExternalOAuth { return nil }
 func (f *fakeAuth) IsGoogleOAuthEnabled() bool         { return false }
 func (f *fakeAuth) IsGitHubOAuthEnabled() bool         { return false }
+func (f *fakeAuth) ValidateAPIKey(_ string) error      { return nil }
 
 type fakeOAuth2 struct{}
 

@@ -111,10 +111,18 @@ type (
 
 	// AuthConfig defines the authentication configuration
 	AuthConfig struct {
-		OAuth2 *OAuth2Config      `yaml:"oauth2"`
-		CORS   *CORSConfig        `yaml:"cors,omitempty"`
-		Google *GoogleOAuthConfig `yaml:"google,omitempty"`
-		GitHub *GitHubOAuthConfig `yaml:"github,omitempty"`
+		OAuth2  *OAuth2Config      `yaml:"oauth2"`
+		CORS    *CORSConfig        `yaml:"cors,omitempty"`
+		Google  *GoogleOAuthConfig `yaml:"google,omitempty"`
+		GitHub  *GitHubOAuthConfig `yaml:"github,omitempty"`
+		APIKeys []APIKeyConfig     `yaml:"api_keys,omitempty"`
+	}
+
+	// APIKeyConfig is a static bearer token accepted on routers with
+	// auth.mode: apikey.
+	APIKeyConfig struct {
+		Name string `yaml:"name"`
+		Key  string `yaml:"key"`
 	}
 	OAuth2Config struct {
 		Issuer  string              `yaml:"issuer"`

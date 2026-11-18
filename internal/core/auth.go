@@ -122,6 +122,20 @@ func (s *Server) sendOAuthError(c *gin.Context, err error) {
 	})
 }
 
+// isValidAPIKey checks the request's Bearer token against auth.api_keys.
+func (s *Server) isValidAPIKey(r *http.Request) bool {
+	auth := r.Header.Get("Authorization")
+	if auth == "" {
+		return false
+	}
+	parts := strings.Split(auth, " ")
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
+		return false
+	}
+
+	return s.auth.ValidateAPIKey(parts[1]) == nil
+}
+
 // isValidAccessToken checks if the request has a valid Bearer token
 func (s *Server) isValidAccessToken(r *http.Request) bool {
 	auth := r.Header.Get("Authorization")

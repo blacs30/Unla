@@ -248,15 +248,27 @@ func (s *Server) handleRoot(c *gin.Context) {
 
 	// Check auth configuration
 	auth := s.state.GetAuth(prefix)
-	if auth != nil && auth.Mode == cnst.AuthModeOAuth2 {
-		// Validate access token
-		if !s.isValidAccessToken(c.Request) {
-			c.Header("WWW-Authenticate", `Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"`)
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error":             "invalid_token",
-				"error_description": "Missing or invalid access token",
-			})
-			return
+	if auth != nil {
+		switch auth.Mode {
+		case cnst.AuthModeOAuth2:
+			// Validate access token
+			if !s.isValidAccessToken(c.Request) {
+				c.Header("WWW-Authenticate", `Bearer realm="OAuth", error="invalid_token", error_description="Missing or invalid access token"`)
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error":             "invalid_token",
+					"error_description": "Missing or invalid access token",
+				})
+				return
+			}
+		case cnst.AuthModeAPIKey:
+			if !s.isValidAPIKey(c.Request) {
+				c.Header("WWW-Authenticate", `Bearer realm="MCP", error="invalid_token", error_description="Missing or invalid API key"`)
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error":             "invalid_token",
+					"error_description": "Missing or invalid API key",
+				})
+				return
+			}
 		}
 	}
 

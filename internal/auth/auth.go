@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/subtle"
+	"errors"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -13,6 +15,9 @@ import (
 // Auth defines the authentication oauth interface
 type Auth interface {
 	OAuth2
+	// ValidateAPIKey checks a static bearer token configured under
+	// auth.api_keys.
+	ValidateAPIKey(token string) error
 	IsOAuth2Enabled() bool
 	GetOAuth2CORS() *config.CORSConfig
 	GetGoogleOAuth() ExternalOAuth
@@ -112,6 +117,25 @@ func (a *auth) ValidateToken(ctx context.Context, token string) error {
 	}
 
 	return a.OAuth2.ValidateToken(ctx, token)
+}
+
+// ErrInvalidAPIKey is returned when a static API key does not match.
+var ErrInvalidAPIKey = errors.New("invalid api key")
+
+// ValidateAPIKey checks a static bearer token against auth.api_keys using a
+// constant-time comparison.
+func (a *auth) ValidateAPIKey(token string) error {
+	if token == "" {
+		return ErrInvalidAPIKey
+	}
+
+	for _, key := range a.cfg.APIKeys {
+		if key.Key != "" && subtle.ConstantTimeCompare([]byte(key.Key), []byte(token)) == 1 {
+			return nil
+		}
+	}
+
+	return ErrInvalidAPIKey
 }
 
 // GetGoogleOAuth returns the Google OAuth provider
