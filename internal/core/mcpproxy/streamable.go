@@ -33,8 +33,14 @@ func (t *StreamableTransport) Start(ctx context.Context, tmplCtx *template.Conte
 		return nil
 	}
 
-	// Create streamable transport
-	streamableTransport, err := transport.NewStreamableHTTP(t.cfg.URL)
+	// Create streamable transport, forwarding any configured static headers
+	// (e.g. per-server API keys) on every request.
+	var opts []transport.StreamableHTTPCOption
+	if len(t.cfg.Headers) > 0 {
+		opts = append(opts, transport.WithHTTPHeaders(t.cfg.Headers))
+	}
+
+	streamableTransport, err := transport.NewStreamableHTTP(t.cfg.URL, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create Streamable HTTP transport: %w", err)
 	}

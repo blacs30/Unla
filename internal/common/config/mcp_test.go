@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/amoylab/unla/pkg/mcp"
@@ -60,4 +61,17 @@ func TestPromptConfig_ToPromptSchema(t *testing.T) {
 		assert.Equal(t, "text", ps.PromptResponse[0].Content.Type)
 		assert.Equal(t, "hello", ps.PromptResponse[0].Content.Text)
 	}
+}
+
+func TestMCPServerConfig_HeadersParse(t *testing.T) {
+	raw := []byte(`{"type":"streamable-http","name":"paperless","url":"http://paperless/mcp","headers":{"X-Paperless-API-Key":"secret","X-Paperless-URL":"http://paperless.local"}}`)
+
+	var cfg MCPServerConfig
+	assert.NoError(t, json.Unmarshal(raw, &cfg))
+	assert.Equal(t, "secret", cfg.Headers["X-Paperless-API-Key"])
+	assert.Equal(t, "http://paperless.local", cfg.Headers["X-Paperless-URL"])
+
+	out, err := json.Marshal(cfg)
+	assert.NoError(t, err)
+	assert.Contains(t, string(out), `"headers":{"X-Paperless-API-Key":"secret","X-Paperless-URL":"http://paperless.local"}`)
 }
