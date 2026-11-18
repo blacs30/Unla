@@ -33,8 +33,14 @@ func (t *SSETransport) Start(ctx context.Context, tmplCtx *template.Context) err
 		return nil
 	}
 
-	// Create SSE transport
-	sseTransport, err := transport.NewSSE(t.cfg.URL)
+	// Create SSE transport, forwarding any configured static headers
+	// (e.g. per-server API keys) on every request.
+	var opts []transport.ClientOption
+	if len(t.cfg.Headers) > 0 {
+		opts = append(opts, transport.WithHeaders(t.cfg.Headers))
+	}
+
+	sseTransport, err := transport.NewSSE(t.cfg.URL, opts...)
 	if err != nil {
 		return fmt.Errorf("failed to create SSE transport: %w", err)
 	}
