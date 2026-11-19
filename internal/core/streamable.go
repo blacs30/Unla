@@ -83,6 +83,14 @@ func (s *Server) handleGet(c *gin.Context) {
 	for {
 		select {
 		case event := <-conn.EventQueue():
+			// A nil event means the session's queue was closed (for example
+			// because the session expired). Dereferencing it would panic.
+			if event == nil {
+				logger.Warn("session event queue closed",
+					zap.String("session_id", conn.Meta().ID),
+				)
+				return
+			}
 			switch event.Event {
 			case "message":
 				_, err := fmt.Fprintf(c.Writer, "event: message\ndata: %s\n\n", event.Data)

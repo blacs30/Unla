@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 
 	"github.com/amoylab/unla/internal/common/cnst"
 
@@ -22,6 +24,7 @@ import (
 
 // StreamableTransport implements Transport using Streamable HTTP
 type StreamableTransport struct {
+	mu     sync.Mutex
 	client *client.Client
 	cfg    config.MCPServerConfig
 }
@@ -29,7 +32,15 @@ type StreamableTransport struct {
 var _ Transport = (*StreamableTransport)(nil)
 
 func (t *StreamableTransport) Start(ctx context.Context, tmplCtx *template.Context) error {
-	if t.IsRunning() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.startLocked(ctx)
+}
+
+// startLocked starts the transport and initializes the MCP session. The caller
+// must hold t.mu.
+func (t *StreamableTransport) startLocked(ctx context.Context) error {
+	if t.client != nil {
 		return nil
 	}
 
@@ -80,23 +91,51 @@ func (t *StreamableTransport) Start(ctx context.Context, tmplCtx *template.Conte
 }
 
 func (t *StreamableTransport) Stop(_ context.Context) error {
-	if !t.IsRunning() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.stopLocked()
+}
+
+// stopLocked closes the client and clears it. The caller must hold t.mu.
+func (t *StreamableTransport) stopLocked() error {
+	if t.client == nil {
 		return nil
 	}
-
-	if t.client != nil {
-		err := t.client.Close()
-		if err != nil {
-			return err
-		}
-		t.client = nil
-	}
-
-	return nil
+	err := t.client.Close()
+	t.client = nil
+	return err
 }
 
 func (t *StreamableTransport) IsRunning() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.client != nil
+}
+
+// currentClient returns the active client, if any.
+func (t *StreamableTransport) currentClient() *client.Client {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.client
+}
+
+// restart drops the current session and initializes a new one. It is used when
+// the backend server was restarted (or redeployed) and no longer recognizes the
+// Mcp-Session-Id cached by the client.
+func (t *StreamableTransport) restart(ctx context.Context) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	// Closing the stale session may itself fail (the backend already forgot
+	// it). That must not prevent us from establishing a new one.
+	_ = t.stopLocked()
+	return t.startLocked(ctx)
+}
+
+// isSessionTerminated reports whether err means the backend no longer knows the
+// MCP session. mcp-go returns this error when the server answers 404, which is
+// what happens after the backend process is replaced.
+func isSessionTerminated(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "session terminated (404)")
 }
 
 func (t *StreamableTransport) FetchTools(ctx context.Context) ([]mcp.ToolSchema, error) {
@@ -112,9 +151,20 @@ func (t *StreamableTransport) FetchTools(ctx context.Context) ([]mcp.ToolSchema,
 	}
 
 	// List available tools
-	toolsResult, err := t.client.ListTools(ctx, mcpgo.ListToolsRequest{})
+	toolsResult, err := t.listTools(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list tools: %w", err)
+		if !isSessionTerminated(err) {
+			return nil, fmt.Errorf("failed to list tools: %w", err)
+		}
+		// The backend was restarted and dropped our session; re-initialize and
+		// retry once. Listing tools has no side effects, so this is safe.
+		if restartErr := t.restart(ctx); restartErr != nil {
+			return nil, fmt.Errorf("failed to list tools: %w (reinitialize failed: %v)", err, restartErr)
+		}
+		toolsResult, err = t.listTools(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list tools: %w", err)
+		}
 	}
 
 	// Convert from mcpgo.Tool to mcp.ToolSchema
@@ -200,12 +250,39 @@ func (t *StreamableTransport) CallTool(ctx context.Context, params mcp.CallToolP
 	callRequest.Params.Name = params.Name
 	callRequest.Params.Arguments = toolCallRequestParams
 
-	res, err := t.client.CallTool(ctx, callRequest)
+	res, err := t.callTool(ctx, &callRequest)
 	if err != nil {
-		return nil, fmt.Errorf("failed to call tool: %w", err)
+		if !isSessionTerminated(err) {
+			return nil, fmt.Errorf("failed to call tool: %w", err)
+		}
+		// The backend was restarted and dropped our session. The call was
+		// rejected with 404 before it ran, so retrying cannot duplicate it.
+		if restartErr := t.restart(ctx); restartErr != nil {
+			return nil, fmt.Errorf("failed to call tool: %w (reinitialize failed: %v)", err, restartErr)
+		}
+		res, err = t.callTool(ctx, &callRequest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to call tool: %w", err)
+		}
 	}
 
 	return convertMCPGoResult(res), nil
+}
+
+func (t *StreamableTransport) callTool(ctx context.Context, req *mcpgo.CallToolRequest) (*mcpgo.CallToolResult, error) {
+	c := t.currentClient()
+	if c == nil {
+		return nil, fmt.Errorf("transport is not running")
+	}
+	return c.CallTool(ctx, *req)
+}
+
+func (t *StreamableTransport) listTools(ctx context.Context) (*mcpgo.ListToolsResult, error) {
+	c := t.currentClient()
+	if c == nil {
+		return nil, fmt.Errorf("transport is not running")
+	}
+	return c.ListTools(ctx, mcpgo.ListToolsRequest{})
 }
 
 // FetchPrompts returns all prompts
