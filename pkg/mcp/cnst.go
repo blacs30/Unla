@@ -80,7 +80,8 @@ const (
 )
 
 const (
-	TextContentType  = "text"
-	ImageContentType = "image"
-	AudioContentType = "audio"
+	TextContentType             = "text"
+	ImageContentType            = "image"
+	AudioContentType            = "audio"
+	EmbeddedResourceContentType = "resource"
 )

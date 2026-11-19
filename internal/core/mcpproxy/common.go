@@ -47,6 +47,28 @@ func convertMCPGoResult(res *mcpgo.CallToolResult) *mcp.CallToolResult {
 					Data:     c.Data,
 					MimeType: c.MIMEType,
 				})
+			case *mcpgo.EmbeddedResource:
+				contentType = "resource"
+				switch resource := c.Resource.(type) {
+				case mcpgo.TextResourceContents:
+					validContents = append(validContents, &mcp.EmbeddedResource{
+						Type: "resource",
+						Resource: mcp.ResourceContents{
+							URI:      resource.URI,
+							MimeType: resource.MIMEType,
+							Text:     resource.Text,
+						},
+					})
+				case mcpgo.BlobResourceContents:
+					validContents = append(validContents, &mcp.EmbeddedResource{
+						Type: "resource",
+						Resource: mcp.ResourceContents{
+							URI:      resource.URI,
+							MimeType: resource.MIMEType,
+							Blob:     resource.Blob,
+						},
+					})
+				}
 			default:
 				// Try to parse from raw content
 				rawContent, err := json.Marshal(content)
@@ -80,6 +102,22 @@ func convertMCPGoResult(res *mcpgo.CallToolResult) *mcp.CallToolResult {
 									Data:     data,
 									MimeType: mimeType,
 								})
+							case "resource":
+								if resource, ok := contentMap["resource"].(map[string]interface{}); ok {
+									uri, _ := resource["uri"].(string)
+									mimeType, _ := resource["mimeType"].(string)
+									text, _ := resource["text"].(string)
+									blob, _ := resource["blob"].(string)
+									validContents = append(validContents, &mcp.EmbeddedResource{
+										Type: "resource",
+										Resource: mcp.ResourceContents{
+											URI:      uri,
+											MimeType: mimeType,
+											Text:     text,
+											Blob:     blob,
+										},
+									})
+								}
 							}
 						}
 					}

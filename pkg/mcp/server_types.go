@@ -140,6 +140,21 @@ type (
 		MimeType string `json:"mimeType"`
 	}
 
+	// EmbeddedResource represents a resource embedded in a tool result.
+	EmbeddedResource struct {
+		// Must be "resource"
+		Type     string           `json:"type"`
+		Resource ResourceContents `json:"resource"`
+	}
+
+	// ResourceContents holds either text or base64-encoded binary data.
+	ResourceContents struct {
+		URI      string `json:"uri"`
+		MimeType string `json:"mimeType,omitempty"`
+		Text     string `json:"text,omitempty"`
+		Blob     string `json:"blob,omitempty"`
+	}
+
 	// CallToolResult represents the result of a tools/call request
 	CallToolResult struct {
 		Content    []Content      `json:"content"`
@@ -382,6 +397,10 @@ func (i *ImageContent) GetType() string {
 
 func (i *AudioContent) GetType() string {
 	return AudioContentType
+}
+
+func (e *EmbeddedResource) GetType() string {
+	return EmbeddedResourceContentType
 }
 
 // NewCallToolResult creates a new CallToolResult

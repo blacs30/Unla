@@ -119,3 +119,28 @@ func TestConvertMCPGoResult_AudioContentDetails(t *testing.T) {
 		}
 	}
 }
+
+func TestConvertMCPGoResult_EmbeddedResource(t *testing.T) {
+	res := &mcpgo.CallToolResult{IsError: false}
+	res.Content = []mcpgo.Content{
+		&mcpgo.EmbeddedResource{
+			Type: "resource",
+			Resource: mcpgo.BlobResourceContents{
+				URI:      "calibre://books/1919/pdf",
+				MIMEType: "application/pdf",
+				Blob:     "JVBERi0xLjQK",
+			},
+		},
+	}
+
+	out := convertMCPGoResult(res)
+	if assert.Len(t, out.Content, 1) {
+		resource, ok := out.Content[0].(*mcp.EmbeddedResource)
+		if assert.True(t, ok) {
+			assert.Equal(t, "resource", resource.Type)
+			assert.Equal(t, "calibre://books/1919/pdf", resource.Resource.URI)
+			assert.Equal(t, "application/pdf", resource.Resource.MimeType)
+			assert.Equal(t, "JVBERi0xLjQK", resource.Resource.Blob)
+		}
+	}
+}
