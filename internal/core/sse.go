@@ -143,16 +143,18 @@ func (s *Server) handleSSE(c *gin.Context) {
 		select {
 		case event := <-conn.EventQueue():
 			if event == nil {
-				logger.Warn("received nil event for session",
+				// Queue closed: the session is gone. Continuing would spin on
+				// a closed channel and panic when dereferencing event.
+				logger.Warn("event queue closed for session",
 					zap.String("session_id", sessionID),
 				)
-			} else {
-				logger.Debug("sending event to SSE client",
-					zap.String("session_id", sessionID),
-					zap.String("event_type", event.Event),
-					zap.Int("data_size", len(event.Data)),
-				)
+				return
 			}
+			logger.Debug("sending event to SSE client",
+				zap.String("session_id", sessionID),
+				zap.String("event_type", event.Event),
+				zap.Int("data_size", len(event.Data)),
+			)
 
 			switch event.Event {
 			case "message":
